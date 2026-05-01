@@ -6,6 +6,7 @@
 **项目类型**: 个人投资研究与监控工具
 **核心方法**: 基本面量化 — 将传统基本面分析与量化模型结合，筛选和监控投资标的
 **目标市场**: A股、港股为主（未来扩展至美股）
+**开发基础**: 基于开源框架 [zvt](https://github.com/zvtvz/zvt) 构建
 
 ---
 
@@ -59,61 +60,58 @@
 - 收益计算与统计
 - 交易记录管理
 
-### 3.2 数据来源
-
-| 数据类型 | 来源 | 说明 |
-|----------|------|------|
-| 主要数据源 | TickFlow | 市场覆盖: A股/港股/美股/期货，免费层支持日线+财务数据 |
-| 日线行情 | TickFlow | 日K、周K、月K |
-| 财务数据 | TickFlow | 财务报表(资产负债表/利润表/现金流量表)、财务指标 |
-| 历史数据 | 本地存储 | 定期同步到本地数据库 |
-
-**数据存储**: 完全本地化，使用 PostgreSQL 存储
-
-**TickFlow 免费层覆盖**:
-- A股: 全市场（上交所/深交所/北交所）
-- 港股: 主板、创业板
-- 美股: 主要交易所
-- 日线数据: 历史数据
-- 财务数据: 季报/年报财务指标、财报原始数据
-
-**付费可扩展**: 实时行情、分钟线数据（按需启用）
-
 ---
 
 ## 4. 技术架构
 
 ### 4.1 技术栈
 
-```
-前端:       Web UI (可选) / API
-后端:       Python (FastAPI)
-数据库:     PostgreSQL + Redis
-数据获取:   JoinQuant（聚宽）API
-任务调度:   APScheduler
-通知:       系统通知 / 邮件 / Telegram Bot
-```
+| 组件 | 技术 | 说明 |
+|------|------|------|
+| **数据框架** | zvt | 开源量化框架，负责数据获取、存储、查询 |
+| **数据源** | eastmoney（东方财富） | 免费，无需 API Key |
+| **API 框架** | FastAPI | 提供 REST API 接口 |
+| **任务调度** | APScheduler | 定时执行监控和数据同步 |
+| **数据库** | SQLite + zvt 内置存储 | 业务数据用 SQLite，行情数据由 zvt 管理 |
+| **通知** | Email / Telegram Bot | 告警推送 |
 
-### 4.2 核心模块
+### 4.2 项目结构
 
 ```
 invest_assistant/
-├── api/              # API 接口
-├── core/             # 核心逻辑
-│   ├── monitor/      # 监控引擎
-│   ├── screener/     # 选股器
-│   ├── valuation/    # 估值模型
-│   ├── backtest/    # 回测引擎
-│   └── simulation/   # 模拟交易
-├── data/             # 数据获取与存储
-│   ├── loader/      # 数据加载（TickFlow API）
-│   └── storage/     # 本地数据库（PostgreSQL）
-├── notification/     # 通知推送
-├── config/           # 配置管理
-└── models/           # 数据模型
-
-数据库详情: 参见 db_schema.md
+├── src/invest_assistant/
+│   ├── main.py              # FastAPI 入口 + 定时任务
+│   ├── api/                 # API 接口
+│   │   ├── monitor.py       # 监控 API
+│   │   ├── stocks.py        # 股票查询 API
+│   │   └── sync.py          # 数据同步 API
+│   ├── core/                # 核心业务逻辑
+│   │   ├── monitor/         # 监控引擎
+│   │   └── notification/    # 通知推送
+│   ├── data/                # 数据层（封装 zvt）
+│   │   ├── provider.py      # 数据查询封装
+│   │   └── sync.py          # 数据同步任务
+│   ├── services/            # 业务服务（调用 zvt）
+│   │   └── screener.py      # 选股服务
+│   ├── models/              # 数据模型
+│   └── config.py            # 配置管理
+├── data/                    # 数据存储目录
+│   ├── zvt/                 # zvt 数据（eastmoney 数据源）
+│   └── my/                  # 业务数据
+└── tests/
 ```
+
+### 4.3 与 zvt 的关系
+
+| 功能 | 实现方式 |
+|------|----------|
+| 数据获取 | zvt.recorders（东方财富数据源） |
+| 数据查询 | zvt.api（query_kdata、query_finance） |
+| 选股 | zvt.factors.TargetSelector + 自定义筛选 |
+| 回测 | zvt.trader |
+| 监控引擎 | **自己开发** |
+| 通知推送 | **自己开发** |
+| API 接口 | **自己开发**（FastAPI） |
 
 ---
 
@@ -121,26 +119,28 @@ invest_assistant/
 
 - **部署方式**: 本地部署（物理机/虚拟机）
 - **数据安全**: 所有数据本地存储，无云端依赖
-- **运行环境**: Linux/macOS/Windows
+- **运行环境**: Linux/macOS/Windows，Python 3.9+
 
 ---
 
-## 6. 优先级与里程碑
+## 6. 实现进度
 
-### Phase 1 - MVP（2-4周）
-- [ ] 数据接口对接（付费API）
-- [ ] 本地数据库设计与实现
-- [ ] 基础监控功能（单一条件监控）
-- [ ] 推送通知集成
+### ✅ Phase 1 - MVP（已完成）
 
-### Phase 2 - 增强（4-8周）
-- [ ] 多条件组合监控
-- [ ] 选股工具
+- [x] 数据接口对接（zvt + eastmoney 免费数据源）
+- [x] 本地数据库设计与实现（SQLite + zvt 存储）
+- [x] 基础监控功能（多条件监控引擎）
+- [x] 推送通知集成（Email / Telegram）
+
+### Phase 2 - 增强（计划中）
+
+- [ ] 完善选股工具（多策略模板）
 - [ ] 估值分析模块
-- [ ] 回测系统
-- [ ] Web UI
+- [ ] 回测系统（zvt.trader）
+- [ ] Web UI 界面
 
-### Phase 3 - 完善（8-12周）
+### Phase 3 - 完善（计划中）
+
 - [ ] 模拟交易
 - [ ] 组合管理
 - [ ] 港股支持扩展
@@ -159,20 +159,35 @@ invest_assistant/
 
 ---
 
-## 8. 开放问题
+## 8. 数据存储说明
 
-~~- [ ] 是否需要回测功能？~~ → ✅ 需要
-~~- [ ] 是否需要模拟交易功能？~~ → ✅ 需要（优先级低）
-~~- [ ] 预算范围（影响数据源选择）？~~ → ✅ 聚宽（JoinQuant）
-~~- [ ] 是否需要移动端 App？~~ → ❌ 不需要
+### zvt 数据存储
+
+zvt 自动管理行情和财务数据的存储，位置：`data/zvt/`
+
+| 数据类型 | 存储位置 | 说明 |
+|----------|----------|------|
+| 股票列表 | zvt 自动管理 | 通过 EastmoneyStockMetaRecorder 获取 |
+| 日线行情 | zvt 自动管理 | 通过 EastmoneyKdataRecorder 获取 |
+| 财务指标 | zvt 自动管理 | 通过 EastmoneyFinanceFactorRecorder 获取 |
+
+### 业务数据存储
+
+自己管理的业务数据，位置：`data/my/invest_assistant.db`
+
+| 表 | 说明 |
+|----|------|
+| 无需建表 | 监控规则和事件目前存于内存，暂未持久化 |
 
 ---
 
 ## 9. 相关文档
 
-- [db_schema.md](db_schema.md) — 数据库详细设计
+- [db_schema.md](db_schema.md) — 数据库设计（基于 zvt 简化版）
+- [project_structure.md](project_structure.md) — 项目结构设计
+- [mvp_plan.md](mvp_plan.md) — MVP 实现计划（已完成）
 
 ---
 
-*文档版本: v0.3*
+*文档版本: v0.4*
 *最后更新: 2026-05-01*
