@@ -9,11 +9,8 @@ class Settings(BaseSettings):
     # Project paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
-    ZVT_DATA_DIR: Path = DATA_DIR / "zvt"
+    BAOSTOCK_DATA_DIR: Path = DATA_DIR / "baostock"
     MY_DATA_DIR: Path = DATA_DIR / "my"
-
-    # Data provider
-    DEFAULT_PROVIDER: str = "eastmoney"
 
     # Monitor settings
     MONITOR_CHECK_INTERVAL_MINUTES: int = 60  # 检查间隔
@@ -43,5 +40,5 @@ settings = Settings()
 
 # Ensure directories exist
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-settings.ZVT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+settings.BAOSTOCK_DATA_DIR.mkdir(parents=True, exist_ok=True)
 settings.MY_DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,5 @@
-"""Data providers package - wraps zvt for data access."""
-from .provider import (
+"""Data providers package — baostock-backed implementation."""
+from .baostock import (
     query_stock_list,
     query_daily_kdata,
     query_financial_metrics,

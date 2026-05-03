@@ -1,14 +1,10 @@
 # Core dependencies
-zvt>=0.13.5
+baostock>=0.8.8
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 apscheduler>=3.10.0
-
-# Optional for better performance
-# pandas>=2.0.0  # zvt depends on this
-# numpy>=1.24.0  # zvt depends on this
 
 # HTTP client (used by notification sender)
 httpx>=0.24.0
