@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 import pandas as pd
 
-from ...data import query_all_financial_metrics, query_stock_list
+from ...providers import query_all_financial_metrics, query_stock_list
 from ...models import MonitorRule, MonitorEvent
 from ..notification import NotificationSender
 
@@ -81,23 +81,20 @@ class MonitorEngine:
         """Get all rules."""
         return self.rules
 
-    def check_rule(self, rule: MonitorRule) -> List[Dict[str, Any]]:
-        """Check a single rule against all stocks.
+    def check_rule(self, rule: MonitorRule, df: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Check a single rule against pre-fetched stock data.
+
+        Args:
+            rule: Monitor rule to evaluate
+            df: Pre-fetched financial metrics DataFrame for the market
 
         Returns:
             List of stocks that triggered the rule
         """
         logger.info(f"Checking rule: {rule.name}")
 
-        try:
-            # Query financial data for market
-            df = query_all_financial_metrics(market=rule.market)
-
-            if df.empty:
-                logger.warning("No data returned from query")
-                return []
-        except Exception as e:
-            logger.error(f"Failed to query data: {e}")
+        if df.empty:
+            logger.warning(f"Empty dataframe for rule: {rule.name}")
             return []
 
         # Evaluate conditions
@@ -135,35 +132,55 @@ class MonitorEngine:
     def check_all_rules(self) -> Dict[str, List[Dict]]:
         """Check all active rules.
 
+        Fetches market data once per market to avoid redundant queries.
+
         Returns:
             Dict mapping rule_id to triggered stocks
         """
+        active_rules = [r for r in self.rules if r.is_active]
+        if not active_rules:
+            return {}
+
+        # Group rules by market to fetch data only once per market
+        rules_by_market: Dict[str, List[MonitorRule]] = {}
+        for rule in active_rules:
+            rules_by_market.setdefault(rule.market, []).append(rule)
+
+        # Fetch data once per market
+        market_data: Dict[str, pd.DataFrame] = {}
+        for market in rules_by_market:
+            try:
+                market_data[market] = query_all_financial_metrics(market=market)
+                logger.info(f"Fetched data for market '{market}': {len(market_data[market])} stocks")
+            except Exception as e:
+                logger.error(f"Failed to fetch data for market '{market}': {e}")
+                market_data[market] = pd.DataFrame()
+
+        # Evaluate each rule against its market data
         results = {}
+        for market, rules in rules_by_market.items():
+            df = market_data[market]
+            for rule in rules:
+                triggered = self.check_rule(rule, df)
 
-        for rule in self.rules:
-            if not rule.is_active:
-                continue
+                if triggered:
+                    # Record events
+                    for stock in triggered:
+                        event = MonitorEvent(
+                            rule_id=rule.rule_id,
+                            symbol=stock["symbol"],
+                            trigger_data=stock["snapshot"],
+                        )
+                        self.events.append(event)
 
-            triggered = self.check_rule(rule)
-
-            if triggered:
-                # Record events
-                for stock in triggered:
-                    event = MonitorEvent(
-                        rule_id=rule.rule_id,
-                        symbol=stock["symbol"],
-                        trigger_data=stock["snapshot"],
+                    # Send notifications
+                    self.notifier.send(
+                        rule_name=rule.name,
+                        stocks=triggered,
+                        conditions=rule.conditions,
                     )
-                    self.events.append(event)
 
-                # Send notifications
-                self.notifier.send(
-                    rule_name=rule.name,
-                    stocks=triggered,
-                    conditions=rule.conditions,
-                )
-
-                results[str(rule.rule_id)] = triggered
+                    results[str(rule.rule_id)] = triggered
 
         return results
 
