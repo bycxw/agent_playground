@@ -137,7 +137,7 @@ def _fetch_valuation(bs, bs_code: str) -> dict:
         start_date=start_date,
         end_date=end_date,
         frequency="d",
-        adjustflag="3",
+        adjustflag="3",  # 不复权: PE/PB are valuation ratios, price adjustment irrelevant
     )
     rows = []
     while rs.error_code == "0" and rs.next():

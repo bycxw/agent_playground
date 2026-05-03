@@ -140,7 +140,7 @@ def query_daily_kdata(
             start_date=start_date,
             end_date=end_date,
             frequency="d",
-            adjustflag="3",
+            adjustflag="3",  # 不复权: raw prices; correct for live price display
         )
         rows = []
         while rs2.error_code == "0" and rs2.next():

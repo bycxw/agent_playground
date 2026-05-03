@@ -100,9 +100,18 @@ baostock (data source)
 |-------|--------|-------------|
 | 0 | ✅ done | Qlib + baostock toolchain validated |
 | 1 | ✅ done | providers/ migrated from zvt → baostock |
-| 2 | next | Qlib research pipeline (factors, LightGBM, PIT backtest) |
-| 3 | later | Wire Qlib parquet signals into MonitorEngine |
+| 2 | ✅ done | Qlib LightGBM pipeline; signals/daily.parquet produced |
+| 3 | next | Wire Qlib parquet signals into MonitorEngine |
 | 4 | 3-6 mo | QMT simulation → live trading |
+
+## Phase 2 notes (qlib_research/pipeline.py)
+
+- Universe: CSI300 (`csi300`), Alpha158 technical factors (158 features, price/volume only)
+- Train 2008-2017 / Valid 2018-2019 / Test 2020-2021
+- Test IC=0.045, ICIR=0.32; backtest excess annualised return +22.3%, IR=1.76
+- **Qlib built-in cn_data ends 2021-06-11** — no fundamentals, no data beyond that date
+- Signal output: `qlib_research/signals/daily.parquet` columns: date, symbol, score, rank
+- adjustflag="3" = 不复权 (raw prices, correct for live display); Qlib internally uses its own factor for adjusted returns
 
 ## Known decisions / gotchas
 
