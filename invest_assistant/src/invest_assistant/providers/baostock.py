@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 DB_PATH: Path = settings.BAOSTOCK_DATA_DIR / "cache.db"
 
+_KDATA_FIELDS = "date,open,high,low,close,volume,amount"
+
 _DDL = """
 CREATE TABLE IF NOT EXISTS stocks (
     entity_id  TEXT PRIMARY KEY,
@@ -89,11 +91,11 @@ def query_stock_list() -> pd.DataFrame:
     """Read stock list from local cache.
 
     Returns:
-        DataFrame with columns: entity_id, code, name, exchange
+        DataFrame with columns: entity_id, symbol, name, exchange
     """
     conn = _open()
     df = pd.read_sql(
-        "SELECT entity_id, symbol AS code, name, exchange FROM stocks ORDER BY entity_id",
+        "SELECT entity_id, symbol, name, exchange FROM stocks ORDER BY entity_id",
         conn,
     )
     conn.close()
@@ -104,7 +106,6 @@ def query_daily_kdata(
     symbol: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    **_,
 ) -> pd.DataFrame:
     """Query daily OHLCV data for one stock directly from baostock (no local cache).
 
@@ -135,7 +136,7 @@ def query_daily_kdata(
     try:
         rs2 = bs.query_history_k_data_plus(
             bs_code,
-            "date,open,high,low,close,volume,amount",
+            _KDATA_FIELDS,
             start_date=start_date,
             end_date=end_date,
             frequency="d",
@@ -148,15 +149,16 @@ def query_daily_kdata(
         bs.logout()
 
     if not rows:
-        return pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume", "amount"])
+        return pd.DataFrame(columns=rs2.fields)
 
-    df = pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume", "amount"])
-    for col in ["open", "high", "low", "close", "volume", "amount"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = pd.DataFrame(rows, columns=rs2.fields)
+    for col in df.columns:
+        if col != "date":
+            df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
 
-def query_financial_metrics(symbol: str, **_) -> pd.DataFrame:
+def query_financial_metrics(symbol: str) -> pd.DataFrame:
     """Query financial metrics for a single stock from local cache.
 
     Returns:
@@ -220,7 +222,7 @@ def query_all_financial_metrics(market: str = "A股") -> pd.DataFrame:
     return df
 
 
-def get_stock_info(symbol: str, **_) -> dict:
+def get_stock_info(symbol: str) -> dict:
     """Get basic info for a stock from local cache.
 
     Returns:

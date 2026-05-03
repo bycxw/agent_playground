@@ -329,6 +329,6 @@ def sync_all() -> dict:
     return {
         "meta": sync_stock_meta(),
         "financial": sync_financial_data(),
-        "kline": {"status": "skipped", "reason": "fetched on-demand"},
+        "kline": sync_daily_kdata(),
         "completed_at": datetime.now().isoformat(),
     }

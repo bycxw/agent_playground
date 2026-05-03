@@ -41,7 +41,7 @@ async def list_stocks(market: Optional[str] = None):
 
     stocks = [
         StockInfo(
-            symbol=row.get("code", ""),
+            symbol=row.get("symbol", ""),
             name=row.get("name", ""),
             exchange=row.get("exchange", ""),
             entity_id=row.get("entity_id", ""),
