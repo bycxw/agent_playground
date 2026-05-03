@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 license = {text = "MIT"}
 
 dependencies = [
-    "zvt>=0.13.5",
+    "baostock>=0.8.8",
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
     "pydantic>=2.0.0",
