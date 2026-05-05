@@ -2,19 +2,19 @@
 import pandas as pd
 import pytest
 
-from invest_assistant.notification.channel import (
+from ops.notification.channel import (
     NotificationChannel,
     dispatch,
     register_channel,
 )
-from invest_assistant.strategies import (
+from ops.strategies import (
     Condition,
     FactorRuleStrategy,
     Triggered,
     known_types,
     lookup,
 )
-from invest_assistant.strategies.factor_rule import _evaluate_condition
+from ops.strategies.factor_rule import _evaluate_condition
 
 
 # ── Conditions ───────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-"""Configuration for Invest Assistant."""
+"""Configuration for ops service."""
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     TELEGRAM_CHAT_ID: str = ""
 
     # Database
-    DATABASE_URL: str = f"sqlite:///{MY_DATA_DIR}/invest_assistant.db"
+    DATABASE_URL: str = f"sqlite:///{MY_DATA_DIR}/ops.db"
 
     class Config:
         env_file = ".env"

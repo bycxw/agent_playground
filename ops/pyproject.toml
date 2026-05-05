@@ -1,17 +1,17 @@
 [project]
-name = "invest-assistant"
+name = "ops"
 version = "0.1.0"
-description = "Personal investment assistant - fundamental quantitative monitoring"
+description = "Live monitoring + notification + execution layer"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
-    "baostock>=0.8.8",
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "sqlalchemy>=2.0.0",
     "apscheduler>=3.10.0",
     "httpx>=0.24.0",
 ]

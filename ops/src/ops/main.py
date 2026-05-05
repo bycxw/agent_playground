@@ -1,4 +1,4 @@
-"""Invest Assistant - Main entry point."""
+"""ops — live monitoring service entry point."""
 import logging
 from contextlib import asynccontextmanager
 
@@ -27,7 +27,7 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
-    logger.info("Starting Invest Assistant...")
+    logger.info("Starting ops service...")
     init_db()
     logger.info("Persistence initialised at %s", settings.DATABASE_URL)
 
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     scheduler.shutdown()
-    logger.info("Invest Assistant stopped")
+    logger.info("ops service stopped")
 
 
 def run_monitor_check():
@@ -75,8 +75,8 @@ def run_monitor_check():
 
 
 app = FastAPI(
-    title="Invest Assistant",
-    description="Personal investment assistant - fundamental quantitative analysis",
+    title="ops",
+    description="Live monitoring + notifications for the personal quant platform",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -99,7 +99,7 @@ async def health_check():
 async def root():
     """Root endpoint."""
     return {
-        "name": "Invest Assistant",
+        "name": "ops",
         "version": "0.1.0",
         "docs": "/docs",
     }
