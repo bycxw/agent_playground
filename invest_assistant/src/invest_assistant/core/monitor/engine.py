@@ -115,9 +115,8 @@ class MonitorEngine:
 
             if matches:
                 stock_info = {
-                    "symbol": row.get("symbol", ""),
+                    "symbol": row.get("symbol", ""),  # canonical "SH600000"
                     "name": row.get("name", ""),
-                    "entity_id": row.get("entity_id", ""),
                 }
 
                 # Add all condition fields to snapshot

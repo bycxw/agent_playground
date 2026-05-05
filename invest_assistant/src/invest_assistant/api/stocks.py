@@ -16,11 +16,11 @@ router = APIRouter(prefix="/stocks", tags=["stocks"])
 
 
 class StockInfo(BaseModel):
-    """Stock basic info."""
+    """Stock basic info. `symbol` is canonical 'SH600000' form."""
     symbol: str
     name: str
     exchange: str
-    entity_id: str
+    code: str
 
 
 class StockListResponse(BaseModel):
@@ -41,10 +41,10 @@ async def list_stocks(market: Optional[str] = None):
 
     stocks = [
         StockInfo(
-            symbol=row.get("symbol", ""),
-            name=row.get("name", ""),
-            exchange=row.get("exchange", ""),
-            entity_id=row.get("entity_id", ""),
+            symbol=row["symbol"],
+            name=row["name"],
+            exchange=row["exchange"],
+            code=row["code"],
         )
         for _, row in df.iterrows()
     ]

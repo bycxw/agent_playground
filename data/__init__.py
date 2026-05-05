@@ -14,8 +14,6 @@ from .providers.baostock import (
     query_financial_metrics,
     query_all_financial_metrics,
     get_stock_info,
-    get_entity_id,
-    parse_entity_id,
     init_db,
 )
 from .providers.baostock_sync import (
@@ -32,8 +30,6 @@ __all__ = [
     "query_financial_metrics",
     "query_all_financial_metrics",
     "get_stock_info",
-    "get_entity_id",
-    "parse_entity_id",
     "init_db",
     "sync_stock_meta",
     "sync_financial_data",

@@ -1,26 +1,36 @@
-"""Data layer backed by local SQLite cache populated via baostock syncs."""
-import sqlite3
+"""baostock-backed query layer over local SQLite cache.
+
+Symbol identification: every row keys on `symbol` in canonical form
+("SH600000"). The Symbol class (`common.symbols`) is used at every
+boundary that accepts user input — internally we store and pass the
+canonical string for DataFrame/SQL friendliness.
+"""
 import logging
-import pandas as pd
+import sqlite3
 from typing import Optional
+
+import pandas as pd
+
+from common.symbols import Symbol
 
 from ..config import DB_PATH
 
 logger = logging.getLogger(__name__)
 
+
 _KDATA_FIELDS = "date,open,high,low,close,volume,amount"
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS stocks (
-    entity_id  TEXT PRIMARY KEY,
-    symbol     TEXT NOT NULL,
+    symbol     TEXT PRIMARY KEY,        -- canonical, e.g. "SH600000"
+    code       TEXT NOT NULL,           -- "600000"
+    exchange   TEXT NOT NULL,           -- "SH" / "SZ" / "HK"
     name       TEXT NOT NULL,
-    exchange   TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS financial_metrics (
-    entity_id           TEXT PRIMARY KEY,
+    symbol              TEXT PRIMARY KEY,
     report_date         TEXT,
     pe_ttm              REAL,
     pb                  REAL,
@@ -31,7 +41,7 @@ CREATE TABLE IF NOT EXISTS financial_metrics (
 );
 
 CREATE TABLE IF NOT EXISTS daily_kdata (
-    entity_id  TEXT NOT NULL,
+    symbol     TEXT NOT NULL,
     trade_date TEXT NOT NULL,
     open       REAL,
     high       REAL,
@@ -39,7 +49,7 @@ CREATE TABLE IF NOT EXISTS daily_kdata (
     close      REAL,
     volume     REAL,
     amount     REAL,
-    PRIMARY KEY (entity_id, trade_date)
+    PRIMARY KEY (symbol, trade_date)
 );
 """
 
@@ -58,41 +68,18 @@ def _open() -> sqlite3.Connection:
     return conn
 
 
-# ── Symbol / entity_id helpers ────────────────────────────────────────────────
-
-def get_entity_id(symbol: str, exchange: str = "SH") -> str:
-    """('600000', 'SH') → 'stock_sh_600000'."""
-    return f"stock_{exchange.lower()}_{symbol}"
-
-
-def parse_entity_id(entity_id: str) -> tuple:
-    """'stock_sh_600000' → ('600000', 'SH')."""
-    parts = entity_id.split("_")
-    if len(parts) >= 3:
-        ex_map = {"sh": "SH", "sz": "SZ", "hk": "HK"}
-        return parts[2], ex_map.get(parts[1], "SH")
-    return entity_id, "SH"
-
-
-def _parse_symbol(symbol: str) -> tuple:
-    """'600000.SH' → ('600000', 'SH');  '000001.SZ' → ('000001', 'SZ')."""
-    if "." in symbol:
-        code, ex = symbol.rsplit(".", 1)
-        return code, ex.upper()
-    return symbol, "SH"
+def _canonical(symbol: str | Symbol) -> str:
+    """Coerce any input to canonical 'SH600000' form."""
+    return symbol.canonical() if isinstance(symbol, Symbol) else Symbol.parse(symbol).canonical()
 
 
 # ── Public query API ──────────────────────────────────────────────────────────
 
 def query_stock_list() -> pd.DataFrame:
-    """Read stock list from local cache.
-
-    Returns:
-        DataFrame with columns: entity_id, symbol, name, exchange
-    """
+    """All cached stocks. Columns: symbol, code, exchange, name."""
     conn = _open()
     df = pd.read_sql(
-        "SELECT entity_id, symbol, name, exchange FROM stocks ORDER BY entity_id",
+        "SELECT symbol, code, exchange, name FROM stocks ORDER BY symbol",
         conn,
     )
     conn.close()
@@ -100,25 +87,22 @@ def query_stock_list() -> pd.DataFrame:
 
 
 def query_daily_kdata(
-    symbol: str,
+    symbol: str | Symbol,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> pd.DataFrame:
-    """Query daily OHLCV data for one stock directly from baostock (no local cache).
+    """Daily OHLCV for one stock, fetched live from baostock (no caching here).
 
     Args:
-        symbol: '600000.SH' or '000001.SZ'
-        start_date: 'YYYY-MM-DD'
-        end_date:   'YYYY-MM-DD'
-
-    Returns:
-        DataFrame with columns: date, open, high, low, close, volume, amount
+        symbol: any format accepted by Symbol.parse (e.g. "600000.SH",
+                "SH600000", or a Symbol instance).
+        start_date: 'YYYY-MM-DD'; defaults to 1 year ago.
+        end_date:   'YYYY-MM-DD'; defaults to today.
     """
     import baostock as bs
     from datetime import date, timedelta
 
-    code, ex = _parse_symbol(symbol)
-    bs_code = f"{ex.lower()}.{code}"
+    sym = Symbol.parse(symbol) if not isinstance(symbol, Symbol) else symbol
 
     if not end_date:
         end_date = date.today().strftime("%Y-%m-%d")
@@ -132,12 +116,12 @@ def query_daily_kdata(
 
     try:
         rs2 = bs.query_history_k_data_plus(
-            bs_code,
+            sym.baostock(),
             _KDATA_FIELDS,
             start_date=start_date,
             end_date=end_date,
             frequency="d",
-            adjustflag="3",  # 不复权: raw prices; correct for live price display
+            adjustflag="3",  # 不复权: raw prices, correct for live display
         )
         rows = []
         while rs2.error_code == "0" and rs2.next():
@@ -155,31 +139,25 @@ def query_daily_kdata(
     return df
 
 
-def query_financial_metrics(symbol: str) -> pd.DataFrame:
-    """Query financial metrics for a single stock from local cache.
-
-    Returns:
-        DataFrame with financial metric columns; empty if not cached yet.
-    """
-    code, ex = _parse_symbol(symbol)
-    entity_id = get_entity_id(code, ex)
+def query_financial_metrics(symbol: str | Symbol) -> pd.DataFrame:
+    """Cached financial metrics for one stock (empty if not yet synced)."""
+    canon = _canonical(symbol)
     conn = _open()
     df = pd.read_sql(
-        "SELECT * FROM financial_metrics WHERE entity_id = ?",
+        "SELECT * FROM financial_metrics WHERE symbol = ?",
         conn,
-        params=(entity_id,),
+        params=(canon,),
     )
     conn.close()
     return df
 
 
 def query_all_financial_metrics(market: str = "A股") -> pd.DataFrame:
-    """Read all financial metrics + stock metadata from local cache.
+    """All cached financial metrics joined with stock metadata.
 
     Returns:
-        DataFrame with columns:
-            entity_id, report_date, pe_ttm, pb, roe, gross_margin,
-            debt_to_asset_ratio, revenue_yoy, net_income_yoy, symbol, name
+        Columns: symbol, code, exchange, name, report_date, pe_ttm, pb, roe,
+                 gross_margin, debt_to_asset_ratio, revenue_yoy, net_income_yoy.
     """
     exchange_map = {"A股": ("SH", "SZ"), "港股": ("HK",), "ALL": None}
     exchanges = exchange_map.get(market, ("SH", "SZ"))
@@ -189,11 +167,11 @@ def query_all_financial_metrics(market: str = "A股") -> pd.DataFrame:
         ph = ",".join("?" * len(exchanges))
         df = pd.read_sql(
             f"""
-            SELECT f.entity_id, f.report_date, f.pe_ttm, f.pb, f.roe,
-                   f.gross_margin, f.debt_to_asset_ratio,
-                   s.symbol, s.name
+            SELECT s.symbol, s.code, s.exchange, s.name,
+                   f.report_date, f.pe_ttm, f.pb, f.roe,
+                   f.gross_margin, f.debt_to_asset_ratio
             FROM financial_metrics f
-            JOIN stocks s ON f.entity_id = s.entity_id
+            JOIN stocks s ON f.symbol = s.symbol
             WHERE s.exchange IN ({ph})
             """,
             conn,
@@ -202,35 +180,30 @@ def query_all_financial_metrics(market: str = "A股") -> pd.DataFrame:
     else:
         df = pd.read_sql(
             """
-            SELECT f.entity_id, f.report_date, f.pe_ttm, f.pb, f.roe,
-                   f.gross_margin, f.debt_to_asset_ratio,
-                   s.symbol, s.name
+            SELECT s.symbol, s.code, s.exchange, s.name,
+                   f.report_date, f.pe_ttm, f.pb, f.roe,
+                   f.gross_margin, f.debt_to_asset_ratio
             FROM financial_metrics f
-            JOIN stocks s ON f.entity_id = s.entity_id
+            JOIN stocks s ON f.symbol = s.symbol
             """,
             conn,
         )
     conn.close()
 
-    # Phase 1: revenue_yoy / net_income_yoy not yet calculated from baostock
+    # Phase 1: revenue_yoy / net_income_yoy not yet derived from baostock.
     df["revenue_yoy"] = float("nan")
     df["net_income_yoy"] = float("nan")
 
     return df
 
 
-def get_stock_info(symbol: str) -> dict:
-    """Get basic info for a stock from local cache.
-
-    Returns:
-        dict with keys: entity_id, symbol, name, exchange; empty if not cached.
-    """
-    code, ex = _parse_symbol(symbol)
-    entity_id = get_entity_id(code, ex)
+def get_stock_info(symbol: str | Symbol) -> dict:
+    """Basic info for one stock. Empty dict if not cached."""
+    canon = _canonical(symbol)
     conn = _open()
     row = conn.execute(
-        "SELECT entity_id, symbol, name, exchange FROM stocks WHERE entity_id = ?",
-        (entity_id,),
+        "SELECT symbol, code, exchange, name FROM stocks WHERE symbol = ?",
+        (canon,),
     ).fetchone()
     conn.close()
     return dict(row) if row else {}
