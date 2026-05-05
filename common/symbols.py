@@ -3,7 +3,7 @@
 Eliminates the format chaos that earlier code carried around:
   - "600000.SH"        display / external API output
   - "sh.600000"        baostock raw API
-  - "SH600000"         canonical (also qlib_research parquet output)
+  - "SH600000"         canonical (also research/signals parquet output)
   - "sh600000"         qlib internal
   - "stock_sh_600000"  zvt legacy entity_id
 

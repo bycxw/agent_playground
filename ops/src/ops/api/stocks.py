@@ -88,8 +88,7 @@ async def get_financial(symbol: str):
     if df.empty:
         return {"symbol": symbol, "data": []}
 
-    # Get latest record
     latest = df.iloc[-1].to_dict()
-    latest["period_end"] = str(latest.get("period_end", ""))
-
+    if latest.get("report_date") is not None:
+        latest["report_date"] = str(latest["report_date"])
     return {"symbol": symbol, "data": latest}

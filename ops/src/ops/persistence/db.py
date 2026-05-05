@@ -11,7 +11,15 @@ from ..config import settings
 from .models import Base
 
 
-_engine = create_engine(settings.DATABASE_URL, future=True)
+# SQLite + threads: APScheduler runs jobs on a background thread while
+# FastAPI handlers run on the asyncio threadpool. check_same_thread=False
+# is required for the engine to share connections across them.
+_connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+_engine = create_engine(
+    settings.DATABASE_URL,
+    future=True,
+    connect_args=_connect_args,
+)
 _SessionMaker = sessionmaker(bind=_engine, expire_on_commit=False)
 
 

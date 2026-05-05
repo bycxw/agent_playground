@@ -56,6 +56,10 @@ def delete_strategy(sess: Session, strategy_id: str) -> bool:
     if row is None:
         return False
     sess.delete(row)
+    # Force flush so a subsequent get_strategy() in the same session reflects
+    # the delete. session.get() consults the identity map and skips autoflush,
+    # so without this the row marked for delete would still be returned.
+    sess.flush()
     return True
 
 
