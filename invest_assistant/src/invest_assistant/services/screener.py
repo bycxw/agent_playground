@@ -2,7 +2,7 @@
 from typing import List, Dict, Optional
 import pandas as pd
 
-from ..providers import query_all_financial_metrics
+from data import query_all_financial_metrics
 
 
 class StockScreener:

@@ -5,8 +5,8 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from typing import Optional, List
 
-from ..config import settings
-from .baostock import init_db, DB_PATH
+from ..config import DB_PATH
+from .baostock import init_db
 
 logger = logging.getLogger(__name__)
 

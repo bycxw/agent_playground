@@ -3,13 +3,10 @@ import sqlite3
 import logging
 import pandas as pd
 from typing import Optional
-from pathlib import Path
 
-from ..config import settings
+from ..config import DB_PATH
 
 logger = logging.getLogger(__name__)
-
-DB_PATH: Path = settings.BAOSTOCK_DATA_DIR / "cache.db"
 
 _KDATA_FIELDS = "date,open,high,low,close,volume,amount"
 

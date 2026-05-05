@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..providers import (
+from data import (
     query_stock_list,
     query_daily_kdata,
     query_financial_metrics,

@@ -6,10 +6,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings."""
 
-    # Project paths — data_storage/ is gitignored, sibling to common/, data/, etc.
+    # Project paths — data_storage/ is gitignored, sibling to common/, data/.
+    # Data layer config (BAOSTOCK_DATA_DIR, DB_PATH) now lives in data.config.
     BASE_DIR: Path = Path(__file__).resolve().parents[3]
     DATA_DIR: Path = BASE_DIR / "data_storage"
-    BAOSTOCK_DATA_DIR: Path = DATA_DIR / "baostock"
     MY_DATA_DIR: Path = DATA_DIR / "my"
 
     # Monitor settings
@@ -40,5 +40,4 @@ settings = Settings()
 
 # Ensure directories exist
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-settings.BAOSTOCK_DATA_DIR.mkdir(parents=True, exist_ok=True)
 settings.MY_DATA_DIR.mkdir(parents=True, exist_ok=True)

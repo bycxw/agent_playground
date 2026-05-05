@@ -4,7 +4,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 import pandas as pd
 
-from ...providers import query_all_financial_metrics, query_stock_list
+from data import query_all_financial_metrics, query_stock_list
 from ...models import MonitorRule, MonitorEvent
 from ..notification import NotificationSender
 

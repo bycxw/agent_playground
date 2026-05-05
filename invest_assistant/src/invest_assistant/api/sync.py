@@ -1,7 +1,7 @@
 """API routes - data sync endpoints."""
 from fastapi import APIRouter, BackgroundTasks
 
-from ..providers import sync_all, sync_stock_meta, sync_financial_data, sync_daily_kdata
+from data import sync_all, sync_stock_meta, sync_financial_data, sync_daily_kdata
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 

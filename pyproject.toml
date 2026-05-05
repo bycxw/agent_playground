@@ -1,0 +1,18 @@
+[project]
+name = "agent-playground"
+version = "0.1.0"
+description = "Personal quant platform — shared common/ and data/ packages"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "baostock>=0.8.8",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["common*", "data*"]
+exclude = ["common.tests*", "**.tests*"]
