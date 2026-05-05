@@ -6,9 +6,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings."""
 
-    # Project paths
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent.parent
-    DATA_DIR: Path = BASE_DIR / "data"
+    # Project paths — data_storage/ is gitignored, sibling to common/, data/, etc.
+    BASE_DIR: Path = Path(__file__).resolve().parents[3]
+    DATA_DIR: Path = BASE_DIR / "data_storage"
     BAOSTOCK_DATA_DIR: Path = DATA_DIR / "baostock"
     MY_DATA_DIR: Path = DATA_DIR / "my"
 

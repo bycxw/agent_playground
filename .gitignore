@@ -145,7 +145,7 @@ env.bak/
 venv.bak/
 agent_101/
 mlruns/
-data/
+data_storage/
 
 # Spyder project settings
 .spyderproject
