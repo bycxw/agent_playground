@@ -1,9 +1,11 @@
 # agent_playground
 
-Personal quant platform for A-share investing. Mixes:
+Personal quant platform. A-share is the first market; HK ahead via the
+provider abstraction. Mixes:
 
 - **Qlib** for offline factor research and PIT-correct backtesting.
-- **baostock** for free daily-frequency price + fundamentals.
+- **baostock** for free A-share daily prices + fundamentals (HK/US slot
+  in via `data.providers.*` when needed).
 - **ops** (FastAPI) for live monitoring, persisted strategies, and
   multi-channel notifications.
 - Future: QMT (via 国信 iQuant) for execution; text + LLM signals as
@@ -11,7 +13,7 @@ Personal quant platform for A-share investing. Mixes:
 
 ```
 agent_playground/
-├── common/   # Symbol, universe, calendar
+├── common/   # Symbol (multi-market: SH/SZ/HK), universe, calendar
 ├── data/     # Provider-agnostic market data
 ├── research/ # Qlib pipelines (isolated venv)
 ├── ops/      # FastAPI live service

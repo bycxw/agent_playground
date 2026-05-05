@@ -1,113 +1,88 @@
-# Invest Assistant
+# ops
 
-个人投资助理 - 基本面量化监控系统
+Live monitoring + notification + (future) execution service for the
+personal quant platform.
 
-## 功能
+## What it does
 
-- 📊 **监控预警**: 按财务指标（PE、ROE等）监控股票，满足条件时自动通知
-- 🔍 **选股工具**: 多条件筛选股票，支持价值投资、成长股策略
-- 📈 **数据同步**: 自动从东方财富获取A股/港股数据
-- 🔔 **通知推送**: 支持 Email、Telegram 通知
+- Holds **strategies** (factor rules today; Top-K signal rules and LLM
+  scorers ahead) in SQLite via SQLAlchemy.
+- On schedule (or manual `POST /strategies/check`), evaluates each active
+  strategy against the cached data layer.
+- Dispatches Triggered events to the channels each strategy declares
+  (email, telegram, …).
+- Persists every event for audit/history.
 
-## 快速开始
+Markets: A-share (SH/SZ) today via baostock; HK joins once a provider
+that covers it (akshare / tushare) lands in `data/providers/`. Strategy
+code uses canonical `Symbol` so adding HK is a data-layer concern only.
 
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. 同步数据
-
-```bash
-python -m invest_assistant.data.sync
-```
-
-### 3. 启动服务
+## Quick start
 
 ```bash
-uvicorn invest_assistant.main:app --reload
+# from repo root
+pip install -e .          # common + data
+pip install -e ./ops
+
+# first-time data sync (run from anywhere)
+python -c "from data import sync_stock_meta; sync_stock_meta()"
+python -c "from data import sync_financial_data; sync_financial_data()"  # ~20 min
+
+# service
+uvicorn ops.main:app --reload
+# open http://localhost:8000/docs
 ```
 
-### 4. 打开 API 文档
+## Adding a strategy type
 
-浏览器访问: http://localhost:8000/docs
+1. New module under `src/ops/strategies/` subclassing `Strategy`. Implement
+   `evaluate(asof)`, `to_config()`, `from_config()`, `type_name()`.
+2. Decorate the class with `@register`.
+3. Import it from `ops/strategies/__init__.py` so the registry picks it up.
 
-## API 端点
+That's it — persistence, API, and engine pick it up via the registry.
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/v1/stocks/ | 获取股票列表 |
-| GET | /api/v1/stocks/{symbol} | 查询股票信息 |
-| GET | /api/v1/stocks/{symbol}/financial | 查询财务指标 |
-| POST | /api/v1/stocks/screen | 筛选股票 |
-| GET | /api/v1/monitor/rules | 查看监控规则 |
-| POST | /api/v1/monitor/rules | 添加监控规则 |
-| POST | /api/v1/monitor/check | 手动触发检查 |
-| POST | /api/v1/sync/all | 同步所有数据 |
+## Adding a notification channel
 
-## 配置
+1. New module under `src/ops/notification/`, subclass `NotificationChannel`,
+   implement `send(strategy_name, triggered)`.
+2. Register it in `notification/__init__.py` (gated on a settings
+   flag if it needs config).
 
-创建 `.env` 文件：
+## Layout
 
-```env
-# 数据目录
-DATA_DIR=./data
-
-# 通知 - Email
-NOTIFICATION_EMAIL_ENABLED=false
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your@email.com
-SMTP_PASSWORD=your_password
-NOTIFICATION_EMAIL_TO=target@email.com
-
-# 通知 - Telegram
-NOTIFICATION_TELEGRAM_ENABLED=false
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+```
+ops/
+├── pyproject.toml
+└── src/ops/
+    ├── api/            FastAPI routes (strategies, stocks, sync)
+    ├── core/monitor/   engine.py: check_all / check_strategy
+    ├── notification/   channel.py + email.py + telegram.py + formatter.py
+    ├── persistence/    SQLAlchemy ORM (strategies, events, signal_state)
+    ├── strategies/     base.py, registry.py, factor_rule.py
+    ├── config.py
+    └── main.py
 ```
 
-## 监控规则示例
+## Example: create a strategy via API
 
 ```bash
-# 添加低估值监控规则 (PE < 15 且 ROE > 10)
-curl -X POST http://localhost:8000/api/v1/monitor/rules \
+curl -X POST http://localhost:8000/api/v1/strategies \
   -H "Content-Type: application/json" \
   -d '{
     "name": "低估价值股",
-    "conditions": [
-      {"field": "pe_ttm", "op": "<", "value": 15},
-      {"field": "roe", "op": ">", "value": 10}
-    ],
-    "condition_logic": "AND"
+    "type": "factor_rule",
+    "market": "A股",
+    "channels": ["email"],
+    "config": {
+      "conditions": [
+        {"field": "pe_ttm", "op": "<", "value": 15},
+        {"field": "roe",    "op": ">", "value": 10}
+      ],
+      "condition_logic": "AND"
+    }
   }'
+
+# Trigger evaluation
+curl -X POST http://localhost:8000/api/v1/strategies/check
 ```
-
-## 项目结构
-
-```
-invest_assistant/
-├── src/invest_assistant/
-│   ├── api/           # API 接口
-│   ├── core/          # 核心业务逻辑
-│   │   ├── monitor/   # 监控引擎
-│   │   └── notification/  # 通知推送
-│   ├── data/          # 数据层（封装 zvt）
-│   ├── services/      # 业务服务
-│   └── models/        # 数据模型
-└── data/              # 数据存储
-    ├── zvt/           # zvt 数据
-    └── my/            # 业务数据
-```
-
-## 技术栈
-
-- **数据**: zvt (东方财富/聚宽)
-- **API**: FastAPI
-- **定时任务**: APScheduler
-- **通知**: Email, Telegram
-
-## License
-
-MIT
