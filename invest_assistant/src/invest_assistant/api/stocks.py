@@ -9,7 +9,6 @@ from data import (
     query_daily_kdata,
     query_financial_metrics,
     get_stock_info,
-    query_all_financial_metrics,
 )
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
@@ -94,43 +93,3 @@ async def get_financial(symbol: str):
     latest["period_end"] = str(latest.get("period_end", ""))
 
     return {"symbol": symbol, "data": latest}
-
-
-@router.post("/screen")
-async def screen_stocks(
-    pe_max: Optional[float] = None,
-    roe_min: Optional[float] = None,
-    revenue_yoy_min: Optional[float] = None,
-    market: str = "A股",
-):
-    """Screen stocks by financial criteria."""
-    df = query_all_financial_metrics(market=market)
-
-    if df.empty:
-        return {"count": 0, "stocks": []}
-
-    # Apply filters
-    if pe_max is not None:
-        df = df[df["pe_ttm"] <= pe_max]
-
-    if roe_min is not None:
-        df = df[df["roe"] >= roe_min]
-
-    if revenue_yoy_min is not None:
-        df = df[df["revenue_yoy"] >= revenue_yoy_min]
-
-    # Limit results
-    df = df.head(100)
-
-    stocks = [
-        {
-            "symbol": row.get("symbol", ""),
-            "name": row.get("name", ""),
-            "pe_ttm": row.get("pe_ttm"),
-            "roe": row.get("roe"),
-            "revenue_yoy": row.get("revenue_yoy"),
-        }
-        for _, row in df.iterrows()
-    ]
-
-    return {"count": len(stocks), "stocks": stocks}
