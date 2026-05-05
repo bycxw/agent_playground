@@ -1,12 +1,4 @@
-"""Core package."""
-from .monitor import MonitorEngine, get_engine, add_rule, remove_rule, check_all
-from .notification import NotificationSender
+"""Core package — monitor engine."""
+from .monitor import check_all, check_strategy
 
-__all__ = [
-    "MonitorEngine",
-    "NotificationSender",
-    "get_engine",
-    "add_rule",
-    "remove_rule",
-    "check_all",
-]
+__all__ = ["check_all", "check_strategy"]

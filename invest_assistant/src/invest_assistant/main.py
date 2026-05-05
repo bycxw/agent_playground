@@ -7,6 +7,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .config import settings
 from .api import api_router
+from .persistence import init_db
+from . import strategies  # registers built-in strategy types
+from . import notification  # wires notification channels from settings
+_ = strategies, notification  # silence unused-import linter
 
 # Configure logging
 logging.basicConfig(
@@ -24,6 +28,8 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Invest Assistant...")
+    init_db()
+    logger.info("Persistence initialised at %s", settings.DATABASE_URL)
 
     # Schedule monitor check (every hour during market hours)
     # Example: check at 10:00, 11:00, 12:00, 13:00, 14:00, 15:00
